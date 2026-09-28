@@ -101,9 +101,6 @@ jobs:
           echo "===== TARGET CHECK ====="
           grep -E '^CONFIG_TARGET_|^CONFIG_PACKAGE_darkmoon=' .config
 
-          echo "===== ARCH CHECK ====="
-          ./scripts/dumpinfo.pl targets | grep -A8 -B2 mt7988 | head -40 || true
-
       - name: Verify correct architecture
         run: |
           cd openwrt
@@ -113,11 +110,34 @@ jobs:
           grep -q '^CONFIG_PACKAGE_darkmoon=m' .config
 
           if grep -q 'CONFIG_TARGET_.*mips.*=y' .config; then
-            echo "ERROR: MIPS target detected. Refusing to build."
+            echo "ERROR: MIPS target detected."
             exit 1
           fi
 
-          echo "MT7988 target configuration verified."
+          echo "MT7988 / AArch64 target verified."
+
+      - name: Build AArch64 toolchain
+        run: |
+          cd openwrt
+
+          echo "===== BUILDING HOST TOOLS ====="
+          make tools/install -j$(nproc)
+
+          echo "===== BUILDING AARCH64 TOOLCHAIN ====="
+          make toolchain/install -j1 V=s
+
+          echo "===== VERIFYING COMPILER ====="
+          find staging_dir/toolchain-* \
+            -type f \
+            -name 'aarch64-openwrt-linux-musl-gcc' \
+            -print
+
+          test -n "$(find staging_dir/toolchain-* \
+            -type f \
+            -name 'aarch64-openwrt-linux-musl-gcc' \
+            -print -quit)"
+
+          echo "AArch64 compiler successfully built."
 
       - name: Build Darkmoon
         run: |
