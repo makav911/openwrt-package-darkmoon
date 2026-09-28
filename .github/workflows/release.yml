@@ -22,14 +22,14 @@ jobs:
 
       - name: Clone OpenWrt 21.02
         run: |
-          git clone --branch openwrt-21.02 https://git.openwrt.org/openwrt/openwrt.git
+          git clone --branch openwrt-21.02 https://github.com/openwrt/openwrt.git
           cd openwrt
           git checkout 4a1d8ef55cbf247f06dae8e958eb8eb42f1882a5
 
       - name: Add MediaTek MT7988 feed
         run: |
           cd openwrt
-          echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^be639389a047a00cca671bf1a06b5848d054adbd" >> feeds.conf.default
+          echo "src-git mtk_openwrt_feed https://github./mediatek/mtk-openwrt-feeds.git^be639389a047a00cca671bf1a06b5848d054adbd" >> feeds.conf.default
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
