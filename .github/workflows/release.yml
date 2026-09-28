@@ -18,9 +18,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential clang flex bison g++ gawk gcc-multilib \
-            gettext git libncurses5-dev \
-            libssl-dev python3 python3-distutils rsync unzip \
-            zlib1g-dev file wget uuid-dev
+            gettext git libncurses5-dev libssl-dev python3 \
+            python3-distutils rsync unzip zlib1g-dev file wget uuid-dev
 
       - name: Clone OpenWrt 21.02
         run: |
@@ -62,9 +61,6 @@ jobs:
 
           cd openwrt
 
-          echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git" \
-            >> feeds.conf.default
-
           sed -i \
             's#src-git mtk_openwrt_feed .*#src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^be639389a047a00cca671bf1a06b5848d054adbd#' \
             autobuild/feeds.conf.default-21.02
@@ -84,15 +80,44 @@ jobs:
           rm -rf openwrt/package/darkmoon
           cp -a darkmoon openwrt/package/darkmoon
 
-      - name: Enable Darkmoon
+      - name: Configure MT7988 and Darkmoon
         run: |
           cd openwrt
 
           ./scripts/feeds update -a
           ./scripts/feeds install -a
 
-          echo "CONFIG_PACKAGE_darkmoon=m" >> .config
+          rm -f .config
+
+          cat > .config <<'EOF'
+          CONFIG_TARGET_mediatek=y
+          CONFIG_TARGET_mediatek_mt7988=y
+          CONFIG_TARGET_mediatek_mt7988_DEVICE_mt7988a-rfb=y
+          CONFIG_PACKAGE_darkmoon=m
+          EOF
+
           make defconfig
+
+          echo "===== TARGET CHECK ====="
+          grep -E '^CONFIG_TARGET_|^CONFIG_PACKAGE_darkmoon=' .config
+
+          echo "===== ARCH CHECK ====="
+          ./scripts/dumpinfo.pl targets | grep -A8 -B2 mt7988 | head -40 || true
+
+      - name: Verify correct architecture
+        run: |
+          cd openwrt
+
+          grep -q '^CONFIG_TARGET_mediatek=y' .config
+          grep -q '^CONFIG_TARGET_mediatek_mt7988=y' .config
+          grep -q '^CONFIG_PACKAGE_darkmoon=m' .config
+
+          if grep -q 'CONFIG_TARGET_.*mips.*=y' .config; then
+            echo "ERROR: MIPS target detected. Refusing to build."
+            exit 1
+          fi
+
+          echo "MT7988 target configuration verified."
 
       - name: Build Darkmoon
         run: |
@@ -113,7 +138,7 @@ jobs:
             -name '*darkmoon*.ipk' \
             -exec cp -v {} dist/ \;
 
-          echo "Darkmoon packages:"
+          echo "===== DARKMOON PACKAGES ====="
           ls -lah dist
 
           test -n "$(find dist -type f -name '*.ipk' -print -quit)"
