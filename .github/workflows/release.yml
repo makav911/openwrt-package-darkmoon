@@ -1,73 +1,30 @@
-name: Build and Release Packages
+name: Build Darkmoon for Flint 4
 
 on:
-  push:
-    tags: [ 'v*' ]
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   build:
-    name: Build ${{ matrix.arch }}-${{ matrix.version }}
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        version:
-          - 25.12.0   # OpenWrt 25.12 Apk
-          - 24.10.0   # OpenWrt 24.10 Ipk
-        arch:
-          # --- High-Performance ARM ---
-          - aarch64_cortex-a53
-          - aarch64_cortex-a72
-          - aarch64_generic
-          
-          # --- Mid-Range ARM ---
-          - arm_cortex-a7_neon-vfpv4
-          - arm_cortex-a15_neon-vfpv4
-          
-          # --- Standard MIPS ---
-          - mips_24kc
-          - mipsel_24kc
-          
-          # --- x86 / PC ---
-          - x86_64
 
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Build with OpenWrt SDK
+      - name: Build Darkmoon
         uses: openwrt/gh-action-sdk@main
         env:
-          ARCH: ${{ matrix.arch }}-${{ matrix.version }}
+          ARCH: aarch64_cortex-a53-21.02
           PACKAGES: darkmoon
-          IGNORE_ERRORS: 0 
-          
-      - name: Collect Packages
+          IGNORE_ERRORS: 0
+
+      - name: Collect Package
         run: |
           mkdir -p dist
-          
-          # Find packages with "darkmoon" and copy them with arch prefix
-          for file in $(find bin/packages/ -type f \( -name "*darkmoon*.apk" -o -name "*darkmoon*.ipk" \)); do
-            filename=$(basename "$file")
-            cp "$file" "dist/${{ matrix.arch }}_${filename}"
-          done
+          find bin/packages/ -type f -name "*darkmoon*.ipk" -exec cp {} dist/ \;
 
-      - name: Upload Artifacts
+      - name: Upload Darkmoon IPK
         uses: actions/upload-artifact@v4
         with:
-          name: darkmoon-${{ matrix.arch }}-${{ matrix.version }}
+          name: darkmoon-flint4-openwrt21
           path: dist/*
-          
-      - name: Add to GitHub Release
-        uses: softprops/action-gh-release@v2
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: dist/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
