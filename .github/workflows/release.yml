@@ -29,18 +29,39 @@ jobs:
       - name: Add MediaTek MT7988 feed
         run: |
           cd openwrt
-          echo "src-git mtk_openwrt_feed https://github./mediatek/mtk-openwrt-feeds.git^be639389a047a00cca671bf1a06b5848d054adbd" >> feeds.conf.default
-          ./scripts/feeds update -a
+
+          echo "src-git mtk_openwrt_feed https://github.com/mediatek/mtk-openwrt-feeds.git^be639389a047a00cca671bf1a06b5848d054adbd" >> feeds.conf.default
+
+          for attempt in 1 2 3 4 5; do
+            echo "Feed download attempt $attempt..."
+
+            if ./scripts/feeds update -a; then
+              echo "Feeds downloaded successfully."
+              break
+            fi
+
+            if [ "$attempt" -eq 5 ]; then
+              echo "Feed download failed after 5 attempts."
+              exit 1
+            fi
+
+            echo "Download failed. Waiting 15 seconds..."
+            sleep 15
+          done
+
           ./scripts/feeds install -a
 
       - name: Apply MediaTek 21.02 files and patches
         run: |
           cd openwrt
+
           cp -af feeds/mtk_openwrt_feed/21.02/files/* .
           cp -af feeds/mtk_openwrt_feed/tools .
+
           for file in $(find feeds/mtk_openwrt_feed/21.02/patches-base -name "*.patch" | sort); do
             patch -f -p1 -i "$file"
           done
+
           for file in $(find feeds/mtk_openwrt_feed/21.02/patches-feeds -name "*.patch" | sort); do
             patch -f -p1 -i "$file"
           done
@@ -52,18 +73,20 @@ jobs:
       - name: Configure MT7988 build
         run: |
           cd openwrt
+
           cat > .config <<'EOF'
           CONFIG_TARGET_mediatek=y
           CONFIG_TARGET_mediatek_mt7988=y
           CONFIG_PACKAGE_darkmoon=m
           EOF
+
           make defconfig
 
       - name: Build toolchain
         run: |
           cd openwrt
-          make tools/install -j1 V=s
-          make toolchain/install -j$(nproc)
+          make tools/install -j$(nproc)
+          make toolchain/install -j1 V=s
 
       - name: Build Darkmoon IPK
         run: |
