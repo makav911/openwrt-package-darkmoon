@@ -62,7 +62,7 @@ jobs:
       - name: Build toolchain
         run: |
           cd openwrt
-          make tools/install -j$(nproc)
+          make tools/install -j1 V=s
           make toolchain/install -j$(nproc)
 
       - name: Build Darkmoon IPK
